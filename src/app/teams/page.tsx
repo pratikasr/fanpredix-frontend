@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link'; 
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaSearch, FaFootballBall, FaBasketballBall, FaBaseballBall, FaHockeyPuck, FaTrophy, FaChartLine, FaCoins } from 'react-icons/fa';
 import { GiSoccerBall, GiTennisBall, GiVolleyballBall } from 'react-icons/gi';
@@ -187,8 +188,10 @@ export default function TeamPage() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
+                <Link href={`/teams/${team.id}/markets`} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full transition duration-300 flex items-center shadow-lg">
                   <FaChartLine className="mr-2" />
                   View Markets
+                </Link>
                 </motion.button>
                 <div className="flex items-center bg-gray-800 rounded-full px-3 py-1">
                   <FaTrophy className="text-yellow-400 mr-2" />
