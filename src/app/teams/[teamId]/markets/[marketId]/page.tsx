@@ -3,57 +3,222 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaChartLine, FaCoins, FaExchangeAlt, FaChartBar, FaArrowUp, FaArrowDown, FaUserAlt, FaClock, FaCheckCircle, FaTrophy, FaBolt, FaFire, FaLock } from 'react-icons/fa';
+import { FaChartLine, FaCoins, FaExchangeAlt, FaChartBar, FaArrowUp, FaArrowDown, FaUserAlt, FaClock, FaCheckCircle, FaTrophy, FaBolt, FaFire, FaLock, FaUndo } from 'react-icons/fa';
 import { GiPodium, GiTrophyCup, GiSoccerBall } from 'react-icons/gi';
+import { ethers } from 'ethers';
 
-// Mock data for the market (you would fetch this data based on the marketId)
-const marketData = {
-  id: 1,
-  title: "Man Utd vs Liverpool - Winner",
-  description: "Predict the winner of the upcoming Premier League clash between Manchester United and Liverpool.",
-  endDate: "2024-12-31",
-  liquidity: 500000,
-  volume: 1200000,
-  outcomes: [
-    { id: 1, name: "Manchester United", backOdds: 2.5, layOdds: 2.55, probability: 40 },
-    { id: 2, name: "Draw", backOdds: 3.2, layOdds: 3.25, probability: 31 },
-    { id: 3, name: "Liverpool", backOdds: 2.8, layOdds: 2.85, probability: 29 },
-  ]
-};
+const contractAddress = '0x239EDd859C51b8b7ac88F55Eed96F380F0bD816d';
+const contractABI = [
+  {
+    "inputs": [{ "internalType": "uint256", "name": "_marketId", "type": "uint256" }],
+    "name": "getMarket",
+    "outputs": [
+      {
+        "components": [
+          { "internalType": "uint256", "name": "id", "type": "uint256" },
+          { "internalType": "uint256", "name": "teamId", "type": "uint256" },
+          { "internalType": "address", "name": "teamManager", "type": "address" },
+          { "internalType": "address", "name": "fanToken", "type": "address" },
+          { "internalType": "string", "name": "category", "type": "string" },
+          { "internalType": "string", "name": "question", "type": "string" },
+          { "internalType": "string", "name": "description", "type": "string" },
+          { "internalType": "string[]", "name": "options", "type": "string[]" },
+          { "internalType": "uint256", "name": "startTime", "type": "uint256" },
+          { "internalType": "uint256", "name": "endTime", "type": "uint256" },
+          { "internalType": "enum FanPredix.MarketStatus", "name": "status", "type": "uint8" },
+          { "internalType": "uint256", "name": "resolvedOutcomeIndex", "type": "uint256" }
+        ],
+        "internalType": "struct FanPredix.Market",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "_marketId", "type": "uint256" },
+      { "internalType": "uint256", "name": "_outcomeIndex", "type": "uint256" },
+      { "internalType": "enum FanPredix.OrderType", "name": "_orderType", "type": "uint8" },
+      { "internalType": "uint256", "name": "_amount", "type": "uint256" },
+      { "internalType": "uint256", "name": "_odds", "type": "uint256" }
+    ],
+    "name": "placeOrder",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "_orderId", "type": "uint256" }],
+    "name": "cancelOrder",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "_marketId", "type": "uint256" },
+      { "internalType": "address", "name": "_user", "type": "address" }
+    ],
+    "name": "getUserBets",
+    "outputs": [{ "internalType": "uint256[]", "name": "", "type": "uint256[]" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "_betId", "type": "uint256" }],
+    "name": "getBet",
+    "outputs": [
+      {
+        "components": [
+          { "internalType": "uint256", "name": "id", "type": "uint256" },
+          { "internalType": "uint256", "name": "marketId", "type": "uint256" },
+          { "internalType": "address", "name": "user", "type": "address" },
+          { "internalType": "uint256", "name": "outcomeIndex", "type": "uint256" },
+          { "internalType": "uint256", "name": "amount", "type": "uint256" },
+          { "internalType": "uint256", "name": "odds", "type": "uint256" },
+          { "internalType": "enum FanPredix.OrderType", "name": "orderType", "type": "uint8" }
+        ],
+        "internalType": "struct FanPredix.Bet",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+];
 
 export default function IndividualMarketPage() {
   const params = useParams();
   const teamId = params.teamId as string;
   const marketId = params.marketId as string;
 
+  const [marketData, setMarketData] = useState(null);
   const [selectedOutcome, setSelectedOutcome] = useState(null);
   const [betType, setBetType] = useState('back');
   const [stake, setStake] = useState(100);
-  const [userBalance, setUserBalance] = useState(10000); // Mock user balance
-  const [userLevel, setUserLevel] = useState(5);
-  const [userXP, setUserXP] = useState(75);
+  const [userBalance, setUserBalance] = useState(0);
+  const [userLevel, setUserLevel] = useState(1);
+  const [userXP, setUserXP] = useState(0);
+  const [userBets, setUserBets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const calculateProfit = () => {
-    if (!selectedOutcome) return 0;
-    const odds = betType === 'back' ? selectedOutcome.backOdds : selectedOutcome.layOdds;
-    return betType === 'back' ? stake * (odds - 1) : stake;
-  };
+  useEffect(() => {
+    fetchMarketData();
+    fetchUserData();
+  }, [marketId]);
 
-  const calculateLiability = () => {
-    if (!selectedOutcome) return 0;
-    const odds = betType === 'back' ? selectedOutcome.backOdds : selectedOutcome.layOdds;
-    return betType === 'back' ? stake : stake * (odds - 1);
-  };
-
-  const placeBet = () => {
-    alert(`Bet placed: ${betType.toUpperCase()} ${selectedOutcome.name} for ${stake} FT`);
-    setUserBalance(prevBalance => prevBalance - stake);
-    setUserXP(prevXP => Math.min(prevXP + 10, 100));
-    if (userXP + 10 >= 100) {
-      setUserLevel(prevLevel => prevLevel + 1);
-      setUserXP(0);
+  const fetchMarketData = async () => {
+    try {
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const contract = new ethers.Contract(contractAddress, contractABI, provider);
+      const market = await contract.getMarket(marketId);
+      setMarketData({
+        id: market.id.toNumber(),
+        title: market.question,
+        description: market.description,
+        endDate: new Date(market.endTime.toNumber() * 1000).toLocaleString(),
+        liquidity: 0, // You might need to calculate this based on orders
+        volume: 0, // You might need to calculate this based on bets
+        outcomes: market.options.map((option, index) => ({
+          id: index,
+          name: option,
+          backOdds: 2, // Placeholder odds, you might need to calculate these
+          layOdds: 2.1, // Placeholder odds, you might need to calculate these
+          probability: 50 // Placeholder probability, you might need to calculate this
+        }))
+      });
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching market data:', err);
+      setError('Failed to fetch market data. Please try again.');
+      setLoading(false);
     }
   };
+
+  const fetchUserData = async () => {
+    try {
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+      const address = await signer.getAddress();
+      const contract = new ethers.Contract(contractAddress, contractABI, signer);
+      
+      // Fetch user bets
+      const betIds = await contract.getUserBets(marketId, address);
+      const betsPromises = betIds.map(id => contract.getBet(id));
+      const betsData = await Promise.all(betsPromises);
+      
+      setUserBets(betsData.map(bet => ({
+        id: bet.id.toNumber(),
+        outcomeIndex: bet.outcomeIndex.toNumber(),
+        amount: ethers.utils.formatEther(bet.amount),
+        odds: bet.odds.toNumber() / 1000,
+        orderType: bet.orderType
+      })));
+
+      // Note: User balance, level, and XP might need to be implemented separately if not in the contract
+      setUserBalance(10000); // Placeholder
+      setUserLevel(5); // Placeholder
+      setUserXP(75); // Placeholder
+    } catch (err) {
+      console.error('Error fetching user data:', err);
+    }
+  };
+
+  const placeOrder = async () => {
+    if (!selectedOutcome) return;
+    try {
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+      const contract = new ethers.Contract(contractAddress, contractABI, signer);
+      
+      const tx = await contract.placeOrder(
+        marketId,
+        selectedOutcome.id,
+        betType === 'back' ? 0 : 1, // 0 for Back, 1 for Lay
+        ethers.utils.parseEther(stake.toString()),
+        ethers.utils.parseUnits(selectedOutcome[betType + 'Odds'].toString(), 3) // Assuming odds are in thousandths
+      );
+      
+      await tx.wait();
+      alert('Order placed successfully!');
+      fetchUserData(); // Refresh user data
+    } catch (err) {
+      console.error('Error placing order:', err);
+      alert('Failed to place order. Please try again.');
+    }
+  };
+
+  const cancelOrder = async (orderId) => {
+    try {
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+      const contract = new ethers.Contract(contractAddress, contractABI, signer);
+      
+      const tx = await contract.cancelOrder(orderId);
+      await tx.wait();
+      alert('Order cancelled successfully!');
+      fetchUserData(); // Refresh user data
+    } catch (err) {
+      console.error('Error cancelling order:', err);
+      alert('Failed to cancel order. Please try again.');
+    }
+  };
+
+  if (loading) {
+    return <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 text-white flex items-center justify-center">
+      <div className="text-2xl font-bold">Loading market data...</div>
+    </div>;
+  }
+
+  if (error) {
+    return <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 text-white flex items-center justify-center">
+      <div className="text-2xl font-bold text-red-500">{error}</div>
+    </div>;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 text-white pt-24 pb-12 px-4 sm:px-6 lg:px-8">
@@ -133,6 +298,47 @@ export default function IndividualMarketPage() {
                 ))}
               </div>
             </motion.div>
+
+            <motion.div 
+              className="mt-8 bg-gray-800 rounded-3xl p-6 shadow-xl border border-green-500"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.6 }}
+            >
+              <h2 className="text-2xl font-bold mb-4 font-orbitron">Your Bets</h2>
+              {userBets.length > 0 ? (
+                <div className="space-y-4">
+                  {userBets.map((bet, index) => (
+                    <motion.div 
+                      key={index}
+                      className="bg-gray-700 rounded-xl p-4"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.1 * index }}
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold">{marketData.outcomes[bet.outcomeIndex].name}</span>
+                        <span className={`font-bold ${bet.orderType === 0 ? 'text-blue-400' : 'text-red-400'}`}>
+                          {bet.orderType === 0 ? 'Back' : 'Lay'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center mt-2">
+                        <span>Stake: {bet.amount} FT</span>
+                        <span>Odds: {bet.odds.toFixed(2)}</span>
+                      </div>
+                      <button
+                        onClick={() => cancelOrder(bet.id)}
+                        className="mt-2 bg-red-500 text-white px-3 py-1 rounded-full text-sm hover:bg-red-600 transition duration-300"
+                      >
+                        <FaUndo className="inline mr-1" /> Cancel
+                      </button>
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-400">You haven't placed any bets on this market yet.</p>
+              )}
+            </motion.div>
           </div>
 
           <motion.div 
@@ -165,18 +371,16 @@ export default function IndividualMarketPage() {
                 </div>
                 <div className="flex justify-between mb-2 text-sm">
                   <span className="text-gray-400">Odds:</span>
-                  <span className="font-bold">{betType === 'back' ? selectedOutcome.backOdds : selectedOutcome.layOdds}</span>
-                </div>
-                <div className="flex justify-between mb-2 text-sm">
-                  <span className="text-gray-400">Potential Profit:</span>
-                  <span className="font-bold text-green-400">{calculateProfit().toFixed(2)} FT</span>
+                  <span className="font-bold">{selectedOutcome[betType + 'Odds'].toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between mb-4 text-sm">
-                  <span className="text-gray-400">Liability:</span>
-                  <span className="font-bold text-red-400">{calculateLiability().toFixed(2)} FT</span>
+                  <span className="text-gray-400">Potential Profit:</span>
+                  <span className="font-bold text-green-400">
+                    {(stake * (selectedOutcome[betType + 'Odds'] - 1)).toFixed(2)} FT
+                  </span>
                 </div>
                 <button 
-                  onClick={placeBet}
+                  onClick={placeOrder}
                   className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold py-2 px-4 rounded-full text-sm hover:from-blue-600 hover:to-purple-700 transition duration-300 transform hover:scale-105"
                   disabled={stake > userBalance}
                 >
@@ -349,7 +553,7 @@ export default function IndividualMarketPage() {
             className="bg-gradient-to-r from-pink-500 to-purple-600 text-white font-bold py-2 px-6 rounded-full text-sm shadow-lg hover:shadow-xl transition duration-300"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-          >
+            >
             View All Markets
           </motion.button>
         </motion.div>
