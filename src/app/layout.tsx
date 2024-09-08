@@ -27,7 +27,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className="dark scroll-smooth">
       <body className={`${robotoCondensed.variable} ${orbitron.variable} font-sans bg-gray-900 text-white`}>
         <div className="flex flex-col min-h-screen">
           <Header />
