@@ -11,7 +11,6 @@ const Header = () => {
   const [showLoginModal, setShowLoginModal] = useState(false)
 
   const navItems = [
-    { name: 'Markets', href: '/markets' },
     { name: 'Teams', href: '/teams' },
     { name: 'Profile', href: '/profile' },
   ]

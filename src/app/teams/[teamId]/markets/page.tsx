@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link'; 
 import { useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaSearch, FaTrophy, FaCrown, FaChartLine, FaCoins, FaUsers, FaHistory, FaCalendarAlt, FaExternalLinkAlt, FaFire, FaBolt, FaLock, FaUnlock, FaStar, FaStarHalfAlt } from 'react-icons/fa';
@@ -235,14 +236,18 @@ export default function TeamMarketsPage() {
                     </div>
                   </div>
                   <div className="px-6 py-4 bg-gray-900 flex justify-between items-center">
+                  <Link href={`/teams/${teamId}/markets/${market.id}`}>
                     <motion.button 
                       className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full transition duration-300 flex items-center shadow-lg"
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     >
+                    
                       <FaExternalLinkAlt className="mr-2" />
                       Predict Now
+                      
                     </motion.button>
+                    </Link>
                     <div className="flex items-center bg-gray-800 rounded-full px-3 py-1">
                       {market.hotness === 'Blazing' ? <FaFire className="text-red-500 mr-2" /> : <FaChartLine className="text-green-400 mr-2" />}
                       <span className="font-bold">{market.hotness}</span>
